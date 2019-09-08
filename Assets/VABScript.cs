@@ -20,7 +20,7 @@ public class VABScript : MonoBehaviour {
     private int submission;
     private int buttoncolour;
     private int remaining = -1;
-    private int counter;
+    private int counter = 1;
     private int[] record = new int[4];
     private int[][] valid = new int[4][] {new int[5] { 5, 4, 3, 2, 1}, new int[5] { 9, 7, 5, 3, 1}, new int[5] { 8, 7, 4, 2, 1}, new int[5] { 9, 8, 6, 4, 1} };
     private bool solvable;
@@ -157,10 +157,10 @@ public class VABScript : MonoBehaviour {
                     }
                     else
                     {
-                        int r = Random.Range(0, 20);
+                        int r = Random.Range(0, 10);
                         if (solvable == true || r < counter)
                         {
-                            counter = 0;
+                            counter = 1;
                             if (open == false)
                             {
                                 open = true;

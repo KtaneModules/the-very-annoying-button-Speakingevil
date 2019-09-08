@@ -1,1 +1,1 @@
-# the-very-annoying-button
+#[ModKit Wiki](../../wiki)

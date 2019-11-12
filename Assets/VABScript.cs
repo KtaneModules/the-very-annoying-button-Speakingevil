@@ -66,6 +66,9 @@ public class VABScript : MonoBehaviour {
             "Organization",
             "Forget Perspective",
             "The Very Annoying Button",
+            "Forget Me Later",
+            "The Mildly Annoying Button",
+            "The Task Master",
             "Simon Supervises",
             "Bad Mouth",
             "Bad TV",
@@ -120,7 +123,7 @@ public class VABScript : MonoBehaviour {
                 }
                 if (i != -1)
                 {
-                    if (twitchActive)
+                    if (twitchActive && open)
                     {
                         yield return new WaitForSeconds(2);
                     }
@@ -183,7 +186,7 @@ public class VABScript : MonoBehaviour {
                         int r = Random.Range(0, 10);
                         if (solvable == true || r < counter)
                         {
-                            counter = 1;
+                            counter = Mathf.FloorToInt(4 * bomb.GetSolvedModuleNames().Where(x => !exempt.Contains(x)).Count() / (bomb.GetSolvableModuleNames().Where(x => !exempt.Contains(x)).Count() + 1)) - 1;
                             if (open == false)
                             {
                                 open = true;
@@ -276,7 +279,7 @@ public class VABScript : MonoBehaviour {
 
     private void ButtonPress(KMSelectable b)
     {
-        if (submitted == false && remaining > 0 && pressable == true)
+        if (submitted == false && remaining > 0 && pressable == true && open)
         {
             submitted = true;
             submission = remaining;
@@ -321,10 +324,15 @@ public class VABScript : MonoBehaviour {
     }
 
     #pragma warning disable 414
-    private readonly string TwitchHelpMessage = @"!{0} press <#> (#)... [Press the button when the number of seconds remaining on the counter is <#> (or (#) and so on)] | Reference currently lit arrows for seconds remaining (1-9), actual seconds remaining is slightly extended in TP";
+    private readonly string TwitchHelpMessage = @"!{0} press <#> (#)... [Press the button when the number of seconds remaining on the counter is <#> (or (#) and so on)] | Reference currently lit arrows for seconds remaining (1-9)";
     #pragma warning restore 414
     IEnumerator ProcessTwitchCommand(string command)
     {
+        if (!open)
+        {
+            yield return "sendtochaterror VAB is currently inactive";
+            yield break;
+        }
         string[] parameters = command.Split(' ');
         if (Regex.IsMatch(parameters[0], @"^\s*press\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
@@ -349,7 +357,20 @@ public class VABScript : MonoBehaviour {
                     }
                     if(waittime != 0)
                     {
+                        bool addpoint = false;
                         button.OnInteract();
+                        if (valid[buttoncolour].Where(x => !record.Contains(x)).Contains(submission))
+                        {
+                            addpoint = true;
+                        }
+                        while (remaining > 0)
+                        {
+                            yield return new WaitForSeconds(0.1f);
+                        }
+                        if(addpoint == true)
+                        {
+                            yield return "awardpoints 1";
+                        }
                     }
                     else
                     {

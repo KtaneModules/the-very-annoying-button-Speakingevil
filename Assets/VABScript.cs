@@ -85,7 +85,6 @@ public class VABScript : MonoBehaviour {
             r.material = arrowcol[1];
         }
         GetComponent<KMBombModule>().OnActivate = OnActivate;
-        StartCoroutine(Reset());
 	}
 
     private void OnActivate()
@@ -98,6 +97,7 @@ public class VABScript : MonoBehaviour {
         {
             twitchActive = false;
         }
+        StartCoroutine(Reset());
         Debug.LogFormat("[The Very Annoying Button #{0}] Twitch Plays mode: {1}", moduleId, TwitchPlaysActive);
     }
 
@@ -123,14 +123,11 @@ public class VABScript : MonoBehaviour {
                 }
                 if (i != -1)
                 {
-                    if (twitchActive && open)
+                    if (twitchActive && open && i == 1 && !solvable)
                     {
-                        yield return new WaitForSeconds(2);
+                        yield return new WaitForSeconds(9);
                     }
-                    else
-                    {
-                        yield return new WaitForSeconds(1);
-                    }
+                    yield return new WaitForSeconds(1);                    
                 }
             }
             else
@@ -369,7 +366,7 @@ public class VABScript : MonoBehaviour {
                         }
                         if(addpoint == true)
                         {
-                            yield return "awardpoints 1";
+                            yield return "awardpoints 2";
                         }
                     }
                     else

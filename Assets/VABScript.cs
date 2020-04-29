@@ -30,7 +30,6 @@ public class VABScript : MonoBehaviour {
     private bool movehatch;
     private bool submitted;
     private bool twitchActive;
-    private int buffer;
 
     //Logging
     static int moduleIdCounter = 1;
@@ -280,7 +279,7 @@ public class VABScript : MonoBehaviour {
         {
             submitted = true;
             submission = remaining;
-            Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, transform);
+            Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, b.transform);
             Debug.LogFormat("[The Very Annoying Button #{0}] Submitted value = {1}", moduleId, submission);
             if (solvable == false)
             {
@@ -294,88 +293,135 @@ public class VABScript : MonoBehaviour {
     //twitch plays
     bool TwitchPlaysActive;
 
-    private bool validCmd(string[] cmds)
-    {
-        string[] valids = { "1","2","3","4","5","6","7","8","9" };
-        for(int i = 1; i < cmds.Length; i++)
-        {
-            if (!valids.Contains(cmds[i]))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private List<int> parseVals(string[] cmds)
-    {
-        List<int> ints = new List<int>();
-        for (int i = 1; i < cmds.Length; i++)
-        {
-            int temp = 0;
-            int.TryParse(cmds[i], out temp);
-            ints.Add(temp);
-        }
-        ints.Sort();
-        return ints;
-    }
-
     #pragma warning disable 414
     private readonly string TwitchHelpMessage = @"!{0} press <#> (#)... [Press the button when the number of seconds remaining on the counter is <#> (or (#) and so on)] | Reference currently lit arrows for seconds remaining (1-9)";
     #pragma warning restore 414
     IEnumerator ProcessTwitchCommand(string command)
     {
-        if (!open)
+        if (!pressable)
         {
-            yield return "sendtochaterror VAB is currently inactive";
+            yield return "sendtochaterror TVAB is currently inactive";
+            yield break;
+        }
+        else if (submitted)
+        {
+            yield return "sendtochaterror TVAB is already pending a submission!";
             yield break;
         }
         string[] parameters = command.Split(' ');
         if (Regex.IsMatch(parameters[0], @"^\s*press\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
-            if(parameters.Length >= 2)
+            if (parameters.Length >= 2)
             {
-                if(validCmd(parameters)){
-                    yield return null;
-                    List<int> parsedvals = parseVals(parameters);
-                    int waittime = 0;
-                    for(int i = parsedvals.Count-1; i >= 0; i--)
+                string[] valids = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+                for (int i = 1; i < parameters.Length; i++)
+                {
+                    if (!valids.Contains(parameters[i]))
                     {
-                        if(remaining > parsedvals.ElementAt(i))
-                        {
-                            waittime = parsedvals.ElementAt(i);
-                            break;
-                        }
-                    }
-                    while(remaining != waittime)
-                    {
-                        yield return "trycancel Button submission cancelled due to a cancel request.";
-                        yield return new WaitForSeconds(0.1f);
-                    }
-                    if(waittime != 0)
-                    {
-                        bool addpoint = false;
-                        button.OnInteract();
-                        if (valid[buttoncolour].Where(x => !record.Contains(x)).Contains(submission))
-                        {
-                            addpoint = true;
-                        }
-                        while (remaining > 0)
-                        {
-                            yield return new WaitForSeconds(0.1f);
-                        }
-                        if(addpoint == true)
-                        {
-                            yield return "awardpoints 2";
-                        }
-                    }
-                    else
-                    {
-                        yield return "sendtochaterror Button times missed! Press command cancelled.";
+                        yield return "sendtochaterror The specified number of seconds remaining '" + parameters[i] + "' is invalid!";
+                        yield break;
                     }
                 }
+                List<int> ints = new List<int>();
+                for (int i = 1; i < parameters.Length; i++)
+                {
+                    int temp = 0;
+                    int.TryParse(parameters[i], out temp);
+                    ints.Add(temp);
+                }
+                ints.Sort();
+                int waitfor = -1;
+                for (int i = 0; i < ints.Count; i++)
+                {
+                    if (remaining > ints[i] || (remaining == 9 && ints[i] == 9))
+                    {
+                        waitfor = ints[i];
+                    }
+                }
+                if (solvable)
+                {
+                    if (waitfor == -1)
+                    {
+                        waitfor = ints[ints.Count - 1];
+                    }
+                }
+                else
+                {
+                    if (waitfor == -1)
+                    {
+                        yield return "sendtochaterror All specified number of seconds remaining have already passed!";
+                        yield break;
+                    }
+                }
+                yield return "sendtochat Pressing the button when the number of seconds remaining is '" + waitfor + "'!";
+                while (remaining != waitfor)
+                {
+                    yield return "trycancel Halted pressing the button due to a request to cancel!";
+                    yield return new WaitForSeconds(0.1f);
+                }
+                button.OnInteract();
+                bool addpoint = false;
+                if (valid[buttoncolour].Where(x => !record.Contains(x)).Contains(submission))
+                {
+                    addpoint = true;
+                    if (solvable)
+                    {
+                        yield return "solve";
+                        addpoint = false;
+                    }
+                }
+                else
+                {
+                    yield return "strike";
+                }
+                while (remaining > 0)
+                {
+                    yield return new WaitForSeconds(0.1f);
+                }
+                if (addpoint == true)
+                {
+                    yield return "awardpoints 2";
+                }
+            }
+            else if (parameters.Length == 1)
+            {
+                yield return "sendtochaterror Please specify at least one number of seconds remaining!";
             }
             yield break;
+        }
+    }
+
+    void TwitchHandleForcedSolve()
+    {
+        StartCoroutine(HandleSolve());
+    }
+
+    IEnumerator HandleSolve()
+    {
+        while (!moduleSolved)
+        {
+            while (!open || !pressable) { yield return new WaitForSeconds(0.1f); }
+            List<int> valids = new List<int>();
+            for (int i = 9; i > 0; i--)
+            {
+                if (valid[buttoncolour].Where(x => !record.Contains(x)).Contains(i))
+                {
+                    valids.Add(i);
+                }
+            }
+            valids.Sort();
+            if (remaining < valids[0] && !solvable)
+            {
+                submitted = true;
+                pressable = false;
+                submission = valids[Random.Range(0, valids.Count)];
+            }
+            else
+            {
+                while (!valids.Contains(remaining)) { yield return new WaitForSeconds(0.1f); }
+                button.OnInteract();
+            }
+            yield return new WaitForSeconds(0.001f);
         }
     }
 }
